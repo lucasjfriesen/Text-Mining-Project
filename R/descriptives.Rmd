@@ -1,0 +1,268 @@
+---
+title: "Descriptives"
+output: html_document
+---
+
+```{r cars}
+library(jsonlite)
+
+translated_tweets <- fromJSON("/Users/lucasfriesen/Google Drive/UBC/Projects/IELTS Project/Data/translated_full.json")
+
+original_tweets<- fromJSON("/Users/lucasfriesen/Google Drive/UBC/Projects/IELTS Project/Data/merged_file_b.json")
+```
+
+*Timespan*: March 31, 2007 - March 31, 2017
+
+*Unique users:* 269022
+
+*User stats:*
+
+      vars      n mean   sd    median      trimmed       mad min   max range   skew kurtosis   se
+user*    1 269022  Inf  NaN 370785520 523175454.33 546753827 515   Inf   Inf    NaN      NaN  NaN
+n        2 269022 4.21 75.7         1         1.59         0   1 23841 23840 172.86 43820.37 0.15
+
+*Tweets per user:*
+
+              user     n
+             <chr> <int>
+ 1 highpoint_ielts 23841
+ 2    SabrinasBook 13024
+ 3   goieltsdotnet 12180
+ 4        IELTS_ID  7561
+ 5       ysapakcom  7087
+ 6        rliberni  5571
+ 7 passieltshigher  5265
+ 8  caroleannmarie  5164
+ 9 lawrence29white  5083
+10      EssayForum  5006
+# ... with 269,012 more rows
+
+
+*Number of represented languages:* 102
+
+*Unique users per language:*
+
+*Langauge stats:*
+
+      vars   n     mean       sd median trimmed    mad min    max  range skew kurtosis      se
+lang*    1 103      NaN       NA     NA     NaN     NA Inf   -Inf   -Inf   NA       NA      NA
+n        2 104 10843.57 62803.83    253 1101.94 355.82   1 619473 619472 8.87    82.06 6158.42
+
+*Tweets lost through translation error:* 5282
+This may be due to the presence of emojis. Needs to be resolved.
+
+*Tweets per language:*
+
+       ~lang,      ~n,
+         "en", 619473,
+         "id", 151820,
+         "ja",  71804,
+         "ar",  47641,
+         "vi",  33649,
+         "es",  30336,
+         "ru",  26284,
+         "th",  21322,
+         "ms",  17697,
+         "ko",  15080,
+         "it",  10568,
+         "tl",  10417,
+         "pt",   9574,
+         "tr",   9314,
+      "zh-CN",   6557,
+         "fr",   5298,
+         "jw",   4845,
+         "hi",   2767,
+         "ca",   2213,
+         "el",   1826,
+         "fa",   1733,
+         "de",   1654,
+         "nl",   1366,
+         "su",   1272,
+         "bn",   1201,
+         "az",   1190,
+         "ne",   1093,
+         "gl",   1006,
+         "mn",   1001,
+         "ht",    991,
+         "bg",    990,
+         "lv",    926,
+         "sv",    919,
+         "ro",    784,
+        "ceb",    747,
+         "uk",    672,
+         "pa",    649,
+         "pl",    606,
+         "fi",    571,
+         "hr",    566,
+         "sq",    528,
+         "da",    502,
+         "ka",    439,
+         "hu",    418,
+         "no",    417,
+         "so",    387,
+         "uz",    355,
+         "et",    338,
+         "lt",    299,
+         "sk",    291,
+         "af",    288,
+         "fy",    257,
+         "mg",    249,
+         "mi",    243,
+         "sw",    230,
+         "cs",    221,
+         "eu",    217,
+         "cy",    214,
+         "ha",    197,
+        "haw",    192,
+         "bs",    181,
+         "ur",    171,
+         "mk",    169,
+         "eo",    166,
+         "hy",    156,
+         "la",    144,
+         "my",    144,
+         "mt",    130,
+        "hmn",    129,
+         "km",    115,
+         "sl",    107,
+         "ml",    101,
+         "is",     98,
+         "sr",     83,
+         "co",     81,
+         "lb",     79,
+         "st",     77,
+         "ku",     76,
+         "ny",     76,
+         "sn",     74,
+         "kk",     67,
+         "gd",     65,
+         "ig",     60,
+         "mr",     60,
+         "yo",     58,
+         "sd",     55,
+         "ta",     54,
+         "lo",     52,
+         "zu",     31,
+         "ps",     30,
+         "tg",     26,
+         "iw",     21,
+         "xh",     15,
+         "be",     14,
+         "ky",     12,
+         "ga",     11,
+         "sm",      9,
+  "zh-Czh-CN",      9,
+         "si",      8,
+         "gu",      7,
+         "te",      3,
+         "am",      1,
+         "kn",      1,
+           NA,      1
+           
+               'af': 'afrikaans',
+    'sq': 'albanian',
+    'am': 'amharic',
+    'ar': 'arabic',
+    'hy': 'armenian',
+    'az': 'azerbaijani',
+    'eu': 'basque',
+    'be': 'belarusian',
+    'bn': 'bengali',
+    'bs': 'bosnian',
+    'bg': 'bulgarian',
+    'ca': 'catalan',
+    'ceb': 'cebuano',
+    'ny': 'chichewa',
+    'zh-cn': 'chinese (simplified)',
+    'zh-tw': 'chinese (traditional)',
+    'co': 'corsican',
+    'hr': 'croatian',
+    'cs': 'czech',
+    'da': 'danish',
+    'nl': 'dutch',
+    'en': 'english',
+    'eo': 'esperanto',
+    'et': 'estonian',
+    'tl': 'filipino',
+    'fi': 'finnish',
+    'fr': 'french',
+    'fy': 'frisian',
+    'gl': 'galician',
+    'ka': 'georgian',
+    'de': 'german',
+    'el': 'greek',
+    'gu': 'gujarati',
+    'ht': 'haitian creole',
+    'ha': 'hausa',
+    'haw': 'hawaiian',
+    'iw': 'hebrew',
+    'hi': 'hindi',
+    'hmn': 'hmong',
+    'hu': 'hungarian',
+    'is': 'icelandic',
+    'ig': 'igbo',
+    'id': 'indonesian',
+    'ga': 'irish',
+    'it': 'italian',
+    'ja': 'japanese',
+    'jw': 'javanese',
+    'kn': 'kannada',
+    'kk': 'kazakh',
+    'km': 'khmer',
+    'ko': 'korean',
+    'ku': 'kurdish (kurmanji)',
+    'ky': 'kyrgyz',
+    'lo': 'lao',
+    'la': 'latin',
+    'lv': 'latvian',
+    'lt': 'lithuanian',
+    'lb': 'luxembourgish',
+    'mk': 'macedonian',
+    'mg': 'malagasy',
+    'ms': 'malay',
+    'ml': 'malayalam',
+    'mt': 'maltese',
+    'mi': 'maori',
+    'mr': 'marathi',
+    'mn': 'mongolian',
+    'my': 'myanmar (burmese)',
+    'ne': 'nepali',
+    'no': 'norwegian',
+    'ps': 'pashto',
+    'fa': 'persian',
+    'pl': 'polish',
+    'pt': 'portuguese',
+    'pa': 'punjabi',
+    'ro': 'romanian',
+    'ru': 'russian',
+    'sm': 'samoan',
+    'gd': 'scots gaelic',
+    'sr': 'serbian',
+    'st': 'sesotho',
+    'sn': 'shona',
+    'sd': 'sindhi',
+    'si': 'sinhala',
+    'sk': 'slovak',
+    'sl': 'slovenian',
+    'so': 'somali',
+    'es': 'spanish',
+    'su': 'sundanese',
+    'sw': 'swahili',
+    'sv': 'swedish',
+    'tg': 'tajik',
+    'ta': 'tamil',
+    'te': 'telugu',
+    'th': 'thai',
+    'tr': 'turkish',
+    'uk': 'ukrainian',
+    'ur': 'urdu',
+    'uz': 'uzbek',
+    'vi': 'vietnamese',
+    'cy': 'welsh',
+    'xh': 'xhosa',
+    'yi': 'yiddish',
+    'yo': 'yoruba',
+    'zu': 'zulu',
+    'fil': 'Filipino',
+    'he': 'Hebrew'
+           

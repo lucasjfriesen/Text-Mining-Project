@@ -1,0 +1,168 @@
+---
+title: "Sentiment"
+output: html_notebook
+---
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+library(janeaustenr)
+library(tidyverse)
+library(jsonlite)
+library(DescTools)
+library(ggplot2)
+library(viridis)
+library(widyr)
+library(igraph)
+library(ggraph)
+library(ggsci)
+library(wordcloud)
+library(reshape2)
+
+pal <- (pal_jco("default")(10))
+
+set.seed(1002)
+
+original_tweets <- fromJSON("/Users/lucasfriesen/Google Drive/R/Main Project/translated_data_B.json")
+# Set stop words using custom set which excludes sentiment bearing words like "not", as well as topical words like "ielts"
+stop_words <- readRDS("custom_stop_words.rds")
+# Setting timestamp to year
+original_tweets <- original_tweets %>% 
+  mutate(linenumber = row_number(), year = StrTrunc(timestamp, maxlen = 4)) %>%
+  mutate(trans = gsub("(f|ht)tp(s?)://(.*)[.][a-z]+", "WEBLINK", trans))
+# Make it tidy
+tidy_tweets <- original_tweets %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) 
+sent_dict <- (get_sentiments("bing")) # "afinn"(-5 <> +5), "loughran" (Positive <> Negative), "bing" (Positive <> Negative)
+# Inner join to ignore words that don't carry sentiment, count using index by linenumber to bin tweets together and hopefully "amplify" the narrative.
+sentiment_tweets <- tidy_tweets %>%
+  inner_join(sent_dict) %>% 
+  count(year, index = linenumber %/% 20, sentiment) %>% 
+  spread(sentiment, n, fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+# Plot the sentiment over time by year
+ggplot(sentiment_tweets, aes(index, sentiment, fill = year)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  facet_wrap(~year, ncol = 3, scales = "free_x") +
+  theme_minimal(base_size = 13) +
+  labs(title = "Sentiment tweets by year",
+       y = "Sentiment") +
+  scale_fill_viridis(end = 0.75, discrete=TRUE, direction = -1) +
+  scale_x_discrete(expand=c(0.02,0)) +
+  theme(strip.text=element_text(hjust=0)) +
+  theme(strip.text = element_text(face = "italic")) +
+  theme(axis.title.x=element_blank()) +
+  theme(axis.ticks.x=element_blank()) +
+  theme(axis.text.x=element_blank())
+# sentiment comparison cloud
+tidy_tweets %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("#F8766D", "#00BFC4"),
+                   max.words = 100, random.order = FALSE, rot.per = 0)
+#for nrc:
+sent_dict <- (get_sentiments("nrc"))
+sentiment_tweets <- tidy_tweets %>%
+  inner_join(sent_dict) %>% 
+   count(year, index = linenumber %/% 100, sentiment) # %>% 
+  # spread(sentiment, n, fill = 0) %>% 
+  # mutate(sentiment = positive - negative)
+# Plot the sentiment over time by year
+ggplot(sentiment_tweets, aes(index, n, fill = sentiment)) +
+  geom_bar(stat = "identity", show.legend = TRUE) +
+  facet_wrap(~sentiment, ncol = 3, scales = "free_y") +
+  theme_minimal(base_size = 13) +
+  labs(title = "Sentiment proportions by type") +
+  scale_fill_viridis(end = 0.75, discrete=TRUE, direction = -1) +
+  scale_x_discrete(expand=c(0.02,0)) +
+  theme(strip.text=element_text(hjust=0)) +
+  theme(strip.text = element_text(face = "italic")) +
+  theme(axis.title.x=element_blank()) +
+  theme(axis.ticks.x=element_blank()) +
+  theme(axis.text.x=element_blank()) + 
+  coord_flip()
+# nrc comparison cloud
+tidy_tweets %>%
+  inner_join(get_sentiments("nrc")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = pal,
+                   max.words = 100, random.order = FALSE, rot.per = 0, title.size = 1, scale = c(2.7,.7))
+# afinn comparison cloud
+tidy_tweets %>%
+  inner_join(get_sentiments("afinn")) %>%
+  count(word, score, sort = TRUE) %>%
+  acast(word ~ score, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = pal,
+                   max.words = 100, random.order = FALSE, rot.per = 0, title.size = 1, scale = c(3,.7))
+```
+ There are some definite peaks worth investigating here! What are those most negative and positive time periods associated with? What are people saying in those moments?
+ 
+```{r}
+# Same as above, by sentences
+sentences_tidy_tweets <- original_tweets %>%
+  unnest_tokens(sentence, text, token = "sentences") %>% 
+  ungroup()
+
+sentences_tidy_tweets <- sentences_tidy_tweets %>% 
+  mutate(linenumber = row_number(), year = StrTrunc(timestamp, maxlen = 4))
+
+bingnegative <- sentiments %>%
+  filter(lexicon == "bing", sentiment == "negative")
+
+# Find most of negative words in a given scope: linenumber, year, etc
+# Need to make it show top 5 tweets, not just one
+# 
+# fair_count <- freq_tweets %>% 
+#   filter(word == "fair")
+#
+# original_tweets <- original_tweets %>% 
+#   mutate(document = row_number())
+#    
+# fair_tweets <- original_tweets %>%
+#   inner_join(fair_count) %>%
+
+wordcounts <- sentences_tidy_tweets %>%
+  group_by(linenumber) %>%
+  summarize(words = n())
+
+top_neg <- tidy_tweets %>%
+  semi_join(bingnegative) %>%
+  group_by(linenumber) %>%
+  summarize(negativewords = n()) %>%
+  left_join(wordcounts, by = c("linenumber")) %>%
+  mutate(ratio = negativewords/words) %>%
+  filter(linenumber != 0) %>%
+  top_n(1)
+original_tweets %>%
+  select(linenumber, trans) %>%
+  filter(linenumber == as.integer(top_neg[1,1]))
+
+# Pairwise n-grams for word network
+words_2009 <- tidy_tweets %>%
+  filter(year == "2009...")
+word_cooccurences <- words_2009 %>%
+  pairwise_count(word, linenumber, sort = TRUE)
+# Word network graph 
+word_cooccurences %>%
+  filter(n >= 350) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n, edge_width = n)) +
+  geom_node_point(color = "darkslategray4", size = 5) +
+  geom_node_text(aes(label = name), vjust = 1.8) +
+  ggtitle(expression(paste("Word Network in 2009 tweets")) +
+  theme_void())
+```
+
+```{r}
+bing_word_counts <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+bing_word_counts %>%
+  filter(sentiment == "positive") %>%
+  top_n(10)
+```

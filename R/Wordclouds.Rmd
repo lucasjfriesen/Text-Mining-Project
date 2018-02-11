@@ -1,0 +1,86 @@
+---
+title: "Wordclouding Notebook"
+output: html_notebook
+---
+What are people saying about the IELTS test? The goal of this project is to use text analysis of tweets containing the word "IELTS" to gain an understaning of the conversations, sentiment, and topics of interest associated with the IELTS test.
+
+A first look at the data using wordclouds reveals little, but is instructional in seeing how we should be wrangling the data to make it useful.
+
+This is the basic code for creating a wordcloud using the IELTS data. 
+
+```{r message=FALSE}
+set.seed(1002)
+
+library(tidyverse)
+library(tidytext)
+library(wordcloud)
+library(jsonlite)
+library(ggsci)
+library(tm)
+library(lubridate)
+library(DescTools)
+
+# Read data from .json
+original_tweets <- fromJSON("/Users/lucasfriesen/Google Drive/UBC/Projects/IELTS Project/Data/chunks/chunk_628000.json")
+# Make it Tidy
+tidy_tweets <- original_tweets %>%
+  select(timestamp, text, lang) %>%
+  unnest_tokens(word, text)
+# Set stop words using custom set which excludes sentiment bearing words like "not", as well as topical words like "ielts"
+# stop_words <- readRDS("custom_stop_words.rds")
+# Get word frequencies
+freq_tweets <- tidy_tweets %>% 
+  count(word, sort = TRUE) 
+# Make the colours nice
+pal <- (pal_jco("default")(10))
+# Wordcloud
+# Uncomment to save as higher res. | png("wordcloud_packages.png", width=1280, height=1280, res=500)
+wordcloud(freq_tweets$word, freq_tweets$n, max.words=50, colors=pal, random.order = F, rot.per = 0, scale = c(4, .7))
+#title(main = c("Raw"), line = -2)
+```
+
+This tells us some, but not much. In general, it looks like people are talking about different types of tests, looking for help, and trying to advertise the ability to help. As well, it is apparent that there are a lot of links in the data that should get filtered out., and foreign langauges that need translation or filtering out.
+
+Let's clean and manipulate the data more thoroughly, in order to provide more meaningful visualizations.
+
+```{r message=FALSE}
+# Remove all various links, replace with "WEBLINK", clean as before
+# cleaned_tweets <- original_tweets %>%
+#   select(text, lang) %>%
+#   mutate(text = gsub("(f|ht)tp(s?)://(.*)[.][a-z]+", "", text)) %>%
+#   mutate(document = row_number()) %>%
+#   unnest_tokens(word, text) %>%
+#   anti_join(stop_words)
+# 
+
+wc_series(original_tweets, cloudtype = "raw", clean = TRUE)
+
+wc_series(original_tweets, cloudtype = "raw", clean = FALSE)
+
+```
+
+This is better. All of the various bits indicating weblinks have been consolidated, we can see that people are definitely talking about the test ("preparation", "tips", "score", "test"), talking about related tests (GRE, TOEFL, TOEIC), different aspects of the test. As well, IELTS is no longer center stage, which is good, because we already knew that every tweet contained "IELTS": That was the data gathering critereon.
+
+
+```{r Document-Term Matrix, message=FALSE, warning=FALSE}
+wc_series(original_tweets, cloudtype = "DTM", clean = TRUE)
+
+wc_series(original_tweets, cloudtype = "DTM", clean = FALSE)
+```
+With the Document-Term Matrix, nothing is changed. This is just a different way of representing the raw data. However, the next one is more interesting: Term Frequency-Inverse Document Frequency.
+
+```{R Term Frequency-Inverse Document Frequency, message=FALSE, warning=FALSE}
+# Create DTM with TF-IDF weighting
+wc_series(original_tweets, cloudtype = "TfIdf", clean = TRUE)
+
+wc_series(original_tweets, cloudtype = "TfIdf", clean = FALSE)
+```
+
+The above image is suddenly much less banal. There is a far wide diversity of frequencies being represented in the top-50 words (as represented by the varying colours. Word clouds are effectively prettified word frequency lists). TF-IDF attempts to pull out words that are more "important", relative to their freqency. Words that are extremely frequent (like "IELTS") are muted, even if we hadn't filtered them out as stop words, because they don't differentiate between documents. Links to other sources are still the most common single thing in the data. People are linking to other sources quite frequently.
+
+And now, to iterate through by time. In this section, one of the most obvious trends is the increase in non-English discussion of IELTS by 2014. Prior to this period there seems to be a much smaller relative frequency of non-English discussion.
+```{r, message=FALSE}
+wc_series(original_tweets, timescale = "yyyy", cloudtype = "TfIdf", clean = TRUE)
+
+wc_series(original_tweets, timescale = "mm", cloudtype = "TfIdf", clean = TRUE)
+```

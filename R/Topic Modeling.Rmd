@@ -1,0 +1,100 @@
+---
+title: "Topic Modeling"
+output: html_notebook
+---
+
+Topic modeling is fun! This first section is preparing the data and loading the necessary packages.
+
+Refer to: https://cran.r-project.org/web/packages/topicmodels/topicmodels.pdf
+          https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
+
+```{r}
+library(tidyverse)
+library(jsonlite)
+library(lubridate)
+library(SnowballC)
+library(wordcloud)
+library(tm)
+
+# Read data from .json
+original_tweets <- fromJSON("translated_full.json") %>%
+  mutate(document = row_number())
+original_tweets$timestamp <- NA
+original_tweets$text <- as.character(original_tweets$text)
+# Set stop words using custom set which excludes sentiment bearing words like "not", as well as topical words like "ielts"
+stop_words <- readRDS("custom_stop_words.rds")
+# Clean it up
+cleaned_tweets <- original_tweets %>%
+  select(timestamp, text, document) %>%
+  mutate(text = gsub("(f|ht)tp(s?)://(.*)[.][a-z]+", "", text)) %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)
+# Prep frequencies for conversion to DTM
+freq_tweets <- cleaned_tweets %>% 
+  count(document, word, sort = TRUE)
+# Create TF-IDF matrix using TidyText, remove sparse terms. Play with the values here
+tfidf_tweets <- freq_tweets %>% 
+  cast_dtm(document, word, n, weighting = tm::weightTf) %>%
+  removeSparseTerms(0.99)
+rowTotals <- apply(tfidf_tweets , 1, sum)
+tfidf_tweets  <- tfidf_tweets[rowTotals > 0, ]
+```
+
+Using topic modeling, it is possible to attempt to discern the number of topics in a given corpus. Like in factor analysis, these topics must be interpretted by the researcher. The output of this first chunk is a data frame displaying the document most highly rated as belonging to each of the topics. LDA assumes topics are uncorrelated,
+
+```{r}
+library(topicmodels)
+# k = number of topics
+# http://tidytextmining.com/topicmodeling.html#latent-dirichlet-allocation
+topics_lda <- LDA(tfidf_tweets, k = 10, control = list(seed = 1002))
+# Word-topic probabilities: beta is the word-level topic probability, gamme is the document-level.
+gamma_topics_lda <- tidy(topics_lda, matrix = "gamma")
+# Most strongly representative tweets by topic
+top_gamma_topics <- gamma_topics_lda %>%
+  group_by(topic) %>%
+  top_n(5)
+top_gamma_topics$document <- as.integer(top_gamma_topics$document)
+topic_tweets <- original_tweets %>%
+  inner_join(top_gamma_topics) %>%
+  select(text, document, topic, gamma)
+topic_tweets$topic <- sort(topic_tweets$topic)
+topic_tweets <- topic_tweets[!duplicated(topic_tweets$topic),]; topic_tweets
+# Find top terms defining the topics
+beta_topics_lda <- tidy(topics_lda, matrix = "beta")
+topics_top_terms <- beta_topics_lda %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+# Show top terms graphically
+topics_top_terms %>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip()
+```
+
+The output of this chunk is a series of plots showing the contrasts between topics at the word-level.
+
+```{r}
+
+# Words that show the greatest differences between topics
+beta_spread <- beta_topics_lda %>%
+  mutate(topic = paste0("topic", topic)) %>%
+  spread(topic, beta) %>%
+  filter(topic1 > .001 | topic2 > .001) %>%
+  mutate(log_ratio = log2(topic2 / topic1))
+# Only shows 2 topics atm.
+beta_spread %>%
+  group_by(log_ratio < 0) %>%
+  top_n(15, abs(log_ratio)) %>%
+  ungroup() %>%
+  mutate(term = reorder(term, log_ratio)) %>%
+  ggplot(aes(term, log_ratio, fill = log_ratio < 0)) +
+  geom_col() +
+  coord_flip() +
+  ylab("Words with the greatest difference in beta between topic 2 and topic 1") +
+  scale_fill_discrete(name = "", labels = c("Topic 1", "Topic 2"))
+```
+

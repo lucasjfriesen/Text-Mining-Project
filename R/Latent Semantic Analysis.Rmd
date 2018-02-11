@@ -1,0 +1,91 @@
+---
+title: "Latent Semantic Analysis"
+output: html_notebook
+---
+
+```{r}
+library(LSAfun)
+library(jsonlite)
+library(tm)
+library(ggsci)
+library(tidyverse)
+library(tidytext)
+
+set.seed(1002)
+
+# Read data from .json
+original_tweets <- fromJSON("/Users/lucasfriesen/Google Drive/UBC/Projects/IELTS Project/Data/chunks/chunk_626000.json")
+
+original_tweets$text <- as.character(original_tweets$text)
+# Set stop words using custom set which excludes sentiment bearing words like "not", as well as topical words like "ielts"
+# Not filtering stopwords per recommendation at: http://scholarpedia.org/article/Latent_semantic_analysis by
+# Dr. Thomas K Landauer, University of Colorado at Boulder and Pearson Knowledge Technologies
+# Dr. Susan Dumais, Microsoft Inc., One Microsoft Way, Redmond WA
+stop_words <- readRDS("custom_stop_words.rds")
+# Clean it up
+cleaned_tweets <- original_tweets %>%
+  select(timestamp, lang, text) %>%
+  mutate(text = gsub("(f|ht)tp(s?)://(.*)[.][a-z]+", "WEBLINK", text)) %>%
+  mutate(document = row_number()) %>%
+  unnest_tokens(word, text)
+
+# Prep frequencies for conversion to DTM
+freq_tweets <- cleaned_tweets %>% 
+  count(document, word, sort = TRUE)
+
+# Create TF-IDF matrix using TidyText, remove sparse terms. Play with the values here
+tfidf_tweets <- freq_tweets %>% 
+  cast_dtm(document, word, n, weighting = tm::weightTfIdf)  %>%
+  removeSparseTerms(0.999)
+
+# Word frequencies for TF-IDF word cloud
+tfidf_freq = data.frame(sort(colSums(as.matrix(tfidf_tweets)),
+                         decreasing=TRUE))
+
+lsa_tweets <- lsa(tfidf_tweets)
+lsa_tweets <- lsa_tweets['dk']
+lsa_tweets <- data.frame(lsa_tweets)
+
+# lsa_tweets <- lsa(tfidf_tweets) %>%
+#  data.frame(lsa_tweets['dk'])
+
+
+# 3D word Cloud!
+n = 30 # Number of words to plot
+pal <- (pal_jco("default")(10)) # colour scale
+key_word <- "prepare" # Whatver word you want to plot from lsa_tweets
+xyz <- plot_neighbors(key_word, n, tvectors = lsa_tweets, dims = 3, method = "MDS", 
+               axes = T, box = T, connect.lines = 5, col = pal, top = T, 
+               expand = 1.2, size = 0, main = "3-D Word Cloud Representing Semantic Connectedness")
+# Standardize the word frequencies to get point sizes
+ffreq <- (4*(tfidf_freq[,]-(mean(tfidf_freq[,])))/sd(tfidf_freq[,]))+5
+# Use the outputted x, y, z coords from running plot_neighbors with size = 0
+rows <- c(1:n)
+for (i in rows){
+  plot3d(xyz[i,], add = TRUE, size = ffreq[i], alpha = .3)
+}
+```
+
+```{r}
+# plotly shizzle
+
+size <- tfidf_freq %>%
+  filter(rownames(tfidf_freq) %in% rownames(xyz))
+
+xyz <- xyz %>%
+    mutate(word = rownames(xyz)) %>%
+    bind_cols(size)
+
+
+p <- plot_ly(data = xyz, x = ~x, y = ~y, z = ~z, 
+    type = "scatter3d",
+    mode = "text",
+    text = ~word) %>%
+        add_markers(
+        size = xyz[,5],
+        marker = list(symbol = 'circle', sizemode = 'diameter'),
+        text = ~paste("Word: ", word, "<br>Total: ", ""),
+        showlegend = F
+    ); p
+
+```
